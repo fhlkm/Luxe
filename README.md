@@ -8,4 +8,4 @@
 
 4. When a search result is selected, a pin is dropped on the map and the map zooms into the location
 
-5. Prompt users to turn on location access
+5. Prompt users to turn on location access.
