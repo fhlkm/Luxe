@@ -175,7 +175,6 @@ public class AutocompletePlaceAdapter extends ArrayAdapter<AutocompletePlaceAdap
      *
      * @param constraint Autocomplete query string
      * @return Results from the autocomplete API or null if the query was not successful.
-     * @see com.google.android.gms.location.places.Places#GEO_DATA_API#getAutocomplete(CharSequence)
      */
     private ArrayList<AutocompletePlace> getAutocomplete(CharSequence constraint) {
         if (mGoogleApiClient.isConnected()) {

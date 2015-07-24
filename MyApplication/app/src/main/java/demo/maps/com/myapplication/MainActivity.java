@@ -38,12 +38,12 @@ import demo.maps.com.adapter.AutocompletePlaceAdapter;
 
 public class MainActivity extends FragmentActivity implements GoogleApiClient.OnConnectionFailedListener {
     public static final String TAG = "MainActivity";
-    public static final String PROVIDER_NAME =LocationManager.GPS_PROVIDER;
     private boolean  is_Gps_Just_Turned_on= false;
     private Location myLocation= null;
     private ProgressDialog dialog= null;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
+    private boolean isOnPause = false;
     /**
      * GoogleApiClient wraps our service connection to Google Play Services and provides access
      * to the user's sign in state as well as the Google's APIs.
@@ -64,9 +64,16 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
     protected void onResume() {
         super.onResume();
         Log.i(TAG, "onResume");
+        isOnPause= false;
         setUpMapIfNeeded();
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        isOnPause = true;
+
+    }
 
     /**
      * Listener that handles selections from suggestions from the AutoCompleteTextView that
@@ -102,8 +109,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
 
     /**
      * Sets up the map if it is possible to do so (i.e., the Google Play services APK is correctly
-     * installed) and the map has not already been instantiated.. This will ensure that we only ever
-     * call {@link #setUpMap()} once when {@link #mMap} is not null.
+     * installed) and the map has not already been instantiated..
      * <p/>
      * If it isn't installed {@link SupportMapFragment} (and
      * {@link com.google.android.gms.maps.MapView MapView}) will show a prompt for the user to
@@ -121,36 +127,40 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
             if (mMap != null) {
                 setUpMap();
             }
-        // when we just open app, after we turn on gps, we should do localization
-        }else if(is_Gps_Just_Turned_on){
+       // After we turn on gps, we should do localization again
+        } else if (is_Gps_Just_Turned_on) {
             setUpMap();
-            is_Gps_Just_Turned_on= false;
+            is_Gps_Just_Turned_on = false;
         }
 
     }
 
     /**
-     * This is where we can add markers or lines, add listeners or move the camera. In this case, we
-     * just add a marker near Africa.
+     * This is where we create map, open search function and get current location
      * <p/>
      * This should only be called once and when we are sure that {@link #mMap} is not null.
      */
     private void setUpMap() {
         mMap.setMyLocationEnabled(true);
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(PROVIDER_NAME, 5000, 5,locationListener);
         // Get Current Location
+        if(null == myLocation)
         myLocation = getLocation(locationManager);
         if (null != myLocation) {
             findCurrentLocation(myLocation);
             openSearchFunction();
+            // ask the user to open gps
         } else if(!isLocationAccess(locationManager)){
             displayPromptForEnablingGPS(this);
-        }else{// we are getting location
+        }else{// we are loading location
             loadingLocation();
         }
     }
 
+    /**
+     *Move camera to current location and add Marker
+     * @param myLocation Current Location
+     */
     public void findCurrentLocation(Location myLocation) {
         if (mMap != null) {
             // set map type
@@ -170,17 +180,15 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
         }
     }
 
+    /**
+     * Open auto complete place search function
+     */
     public void openSearchFunction() {
-        // Construct a GoogleApiClient for the {@link Places#GEO_DATA_API} using AutoManage
-        // functionality, which automatically sets up the API client to handle Activity lifecycle
-        // events. If your activity does not extend FragmentActivity, make sure to call connect()
-        // and disconnect() explicitly.
-        mGoogleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, 0 /* clientId */, this).addApi(Places.GEO_DATA_API).build();
-        AutoCompleteTextView mAutocompleteView = (AutoCompleteTextView)
-                findViewById(R.id.autocomplete_places);
-        mAutocompleteView.setOnItemClickListener(mAutocompleteClickListener);
-        mAdapter = new AutocompletePlaceAdapter(this, R.layout.item, null, mGoogleApiClient, BOUNDS_CURRENT_LOCATION, null);
-        mAutocompleteView.setAdapter(mAdapter);
+            mGoogleApiClient = new GoogleApiClient.Builder(this).enableAutoManage(this, 0 /* clientId */, this).addApi(Places.GEO_DATA_API).build();
+            AutoCompleteTextView mAutocompleteView = (AutoCompleteTextView)findViewById(R.id.autocomplete_places);
+            mAutocompleteView.setOnItemClickListener(mAutocompleteClickListener);
+            mAdapter = new AutocompletePlaceAdapter(this, R.layout.item, null, mGoogleApiClient, BOUNDS_CURRENT_LOCATION, null);
+            mAutocompleteView.setAdapter(mAdapter);
     }
 
     /**
@@ -256,13 +264,15 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
             boolean isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
             // getting network status
             boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 1000, 1,locationListener);
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 1,locationListener);
             if (!isGPSEnabled && !isNetworkEnabled) {
                 return null;
             } else {
                 if (isGPSEnabled) {
+
                     Log.d("GPS", "GPS Enabled");
                     location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
                 }
                 if (isNetworkEnabled&& location== null) {
                     Log.d("NetWork", "NetWork Enabled");
@@ -285,10 +295,15 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
         @Override
         public void onLocationChanged(Location location) {
             Log.i(TAG, "new Location");
+            is_Gps_Just_Turned_on= true;
             if (myLocation == null) {
                 myLocation = location;
                 if (dialog != null && dialog.isShowing()) {
                     dialog.dismiss();
+                    // we can only execute onResume when the activity is on foreground
+                    if(!isOnPause){
+                        onResume();
+                    }
                 }
             }
         }
