@@ -295,7 +295,7 @@ public class MainActivity extends FragmentActivity implements GoogleApiClient.On
         @Override
         public void onLocationChanged(Location location) {
             Log.i(TAG, "new Location");
-            is_Gps_Just_Turned_on= true;
+
             if (myLocation == null) {
                 myLocation = location;
                 if (dialog != null && dialog.isShowing()) {
